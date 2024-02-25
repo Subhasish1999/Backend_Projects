@@ -12,4 +12,4 @@ const connectDb = async () => {    //db is an another continent
     }
 } 
 
-export default connectDb;
+export default connectDb; 
