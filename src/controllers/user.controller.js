@@ -1,10 +1,66 @@
 import { asyncHandler } from "../utils/asyncHndler.js";
-
+import {ApiError} from "../utils/ApiError.js";
+import {User} from "../models/user.model.js";
+import {uplodOnCloudinary} from "../utils/cloudnary.js";
+import {ApiResponse} from "../utils/ApiResponse.js";
 
 const registerUser = asyncHandler( async (req, res) => {
-    res.status(200).json({
-        message: "ok"
+
+    //get user details from frontend
+    const {fullName, email, userName, password} = req.body
+    console.log("email: ", email);
+
+    //validation - not empty
+    if ([fullName, email, userName, password].some((field) => field?.trim() === "")) {
+        throw new ApiError(400, "All fields are required")
+    }
+
+    //check if user already exists: username, email
+    const existedUser = User.findOne({
+        $or: [{userName}, {email}]
     })
+    if (existedUser) {
+        throw new ApiError(409, "User with email or username already exists")
+    }
+
+    //check for images, check for avatar
+    const avtarLocalPath = req.files?.avtar[0]?.path; //as we make a middleware in routes, so the middleware also give some access. multer gives us the access of req.file
+    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    if(!avtarLocalPath){
+        throw new ApiError(400, "Avtar file is required")
+    }
+
+    //uplod them to cloudnary, avtar
+    const avtar = await uplodOnCloudinary(avtarLocalPath)
+    const coverImage = await uplodOnCloudinary(coverImageLocalPath)
+    if (!avtar) {
+        throw new ApiError(400, "Avtar file is required")
+    }
+
+    //create user object - create entry in db
+    const user = await User.create({
+        fullName,
+        avtar: avtar.url,
+        coverImage: coverImage?.url || "",
+        email,
+        password,
+        userName: userName.toLowerCase()
+    })
+    
+    //remove password and refresh token field from response
+    const createdUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
+
+     //check for user creation
+    if (!createdUser) {
+        throw new ApiError(500, "Something went wrong while regestring the user")
+    }
+
+    //return response
+    return res.status(201).json(
+        new ApiResponse(200, createdUser, "User Registered Successfully")
+    )
 } )
 
 export {registerUser}
