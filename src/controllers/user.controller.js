@@ -7,31 +7,39 @@ import {ApiResponse} from "../utils/ApiResponse.js";
 const registerUser = asyncHandler( async (req, res) => {
 
     //get user details from frontend
-    const {fullName, email, userName, password} = req.body
+    const {fullName, email, userName, passward} = req.body
     console.log("email: ", email);
 
     //validation - not empty
-    if ([fullName, email, userName, password].some((field) => field?.trim() === "")) {
+    if ([fullName, email, userName, passward].some((field) => field?.trim() === "")) {
         throw new ApiError(400, "All fields are required")
     }
 
     //check if user already exists: username, email
-    const existedUser = User.findOne({
+    const existedUser = await User.findOne({
         $or: [{userName}, {email}]
     })
     if (existedUser) {
         throw new ApiError(409, "User with email or username already exists")
     }
 
+    // console.log(req.files);
+
     //check for images, check for avatar
-    const avtarLocalPath = req.files?.avtar[0]?.path; //as we make a middleware in routes, so the middleware also give some access. multer gives us the access of req.file
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
-    if(!avtarLocalPath){
+    const avatarLocalPath = req.files?.avatar[0]?.path; //as we make a middleware in routes, so the middleware also give some access. multer gives us the access of req.file
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0) {
+        coverImageLocalPath = req.files.coverImage[0].path;
+    }
+
+
+    if(!avatarLocalPath){
         throw new ApiError(400, "Avtar file is required")
     }
 
     //uplod them to cloudnary, avtar
-    const avtar = await uplodOnCloudinary(avtarLocalPath)
+    const avtar = await uplodOnCloudinary(avatarLocalPath)
     const coverImage = await uplodOnCloudinary(coverImageLocalPath)
     if (!avtar) {
         throw new ApiError(400, "Avtar file is required")
@@ -40,10 +48,10 @@ const registerUser = asyncHandler( async (req, res) => {
     //create user object - create entry in db
     const user = await User.create({
         fullName,
-        avtar: avtar.url,
+        avatar: avtar.url,
         coverImage: coverImage?.url || "",
         email,
-        password,
+        passward,
         userName: userName.toLowerCase()
     })
     

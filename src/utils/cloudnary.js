@@ -16,7 +16,8 @@ const uplodOnCloudinary = async (localFilePath) => {
             resource_type: "auto"
         })
         //file has already been uploaded successfully
-        console.log("file has already been uploaded in cloudinary", response.url);
+        //console.log("file has already been uploaded in cloudinary", response.url);
+        fs.unlinkSync(localFilePath)
         return response
     } catch (error) {
         fs.unlinkSync(localFilePath) //remove the locally saved temporary file as the uplod operation got failed
